@@ -27,7 +27,7 @@ install-etc:
 	ssh amqp sudo systemctl daemon-reload
 
 install-bin:
-	scp .stack-work/install/arm-linux/nightly-2016-07-10/8.0.1/bin/lcd1-driver amqp:/tmp/
+	scp .stack-work/install/arm-linux/lts-7.8/8.0.1/bin/lcd1-driver amqp:/tmp/
 	ssh amqp sudo systemctl stop lcd1-driver.service
 	ssh amqp sudo install -o root -g root -m 755 /tmp/lcd1-driver /www/lcd1-driver
 	ssh amqp sudo systemctl start lcd1-driver.service

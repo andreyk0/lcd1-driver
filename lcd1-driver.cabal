@@ -44,5 +44,6 @@ executable lcd1-driver
                      , time
                      , transformers
                      , transformers-base
+                     , tz
 
   ghc-options:       -Wall -fwarn-tabs -fno-warn-orphans -fno-warn-missing-signatures -threaded -O2

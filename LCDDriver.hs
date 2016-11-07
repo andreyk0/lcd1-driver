@@ -30,6 +30,7 @@ import qualified Data.Text as T
 import           Data.Time.Clock
 import           Data.Time.Format
 import           Data.Time.LocalTime
+import           Data.Time.Zones
 import           Home.Sensor.AMQP
 import           Home.Sensor.Types
 import           Home.Sensor.Zone
@@ -53,7 +54,7 @@ data DriverScreen = DSTime
 
 data DriverState =
   DriverState { dsScreen:: !(Cir DriverScreen)
-              , dsTimeZone:: !(Cir TimeZone)
+              , dsTimeZone:: !(Cir (Text,TZ))
               , dsSensorData:: !(Map SensorID SensorDatum)
               } deriving (Eq, Show)
 
@@ -72,7 +73,8 @@ driveLCD = do
   let amqpUrl = "amqp://" <> argsAmqpUser <> ":" <> argsAmqpPassword <> "@" <> argsAmqpHost <> ":5672/"
   _ <- fork $ sourceSensorData amqpUrl =$= sampleAndHoldSensors 300 =$= CL.map SensorUpdate $$ mvSink mvInput
 
-  let iDs = DriverState allDriverScreens allTimeZones Map.empty
+  allTzs <- liftBase $ allTimeZones
+  let iDs = DriverState allDriverScreens allTzs Map.empty
 
   mvSource mvInput =$= updateStateConduit iDs =$= renderConduit =$= dedupConduit $$ lcdSink
 
@@ -194,10 +196,10 @@ renderDsTime:: MonadBase IO m
            -> m Text
 renderDsTime DriverState{..} = do
   ts <- liftBase $ getCurrentTime
-  let tz = cirElem dsTimeZone
-      localTs = utcToLocalTime tz ts
+  let (tzName, tz) = cirElem dsTimeZone
+      localTs = utcToLocalTimeTZ tz ts
       tsStr = formatTime defaultTimeLocale timeScreenDateFormat localTs
-  return $ "\0" <> T.pack tsStr <> "   " <> (T.pack . timeZoneName) tz
+  return $ "\0" <> T.pack tsStr <> "   " <> tzName
 
 
 nextDriverState:: DriverInput
@@ -228,10 +230,11 @@ allDriverScreens:: Cir DriverScreen
 allDriverScreens = cirFromList $ enumFromTo DSTime DSGeiger
 
 
-allTimeZones:: Cir TimeZone
-allTimeZones = cirFromList [ TimeZone (-240) True "EDT"
-                           , utc
-                           ]
+allTimeZones:: IO (Cir (Text,TZ))
+allTimeZones = do
+  ny <- loadSystemTZ "America/New_York"
+  kv <- loadSystemTZ "Europe/Kiev"
+  return $ cirFromList [ (" NY", ny), (" KV", kv), ("UTC", utcTZ) ]
 
 
 zonePressure:: Map SensorID SensorDatum
@@ -269,5 +272,3 @@ zoneSensorData:: (SensorDatum -> Maybe a)
 zoneSensorData getSd z s2d =
   catMaybes $! fmap (getSd) $! catMaybes $! fmap (\sid -> Map.lookup sid s2d) zss
   where zss = zoneSensors z
-
-
