@@ -27,15 +27,15 @@ parseArgs maybeAmqpU maybeAmqpP= Args
      <> showDefault
      <> help "Verbosity level.")
   <*> strOption
-      ( long "host"
+      ( long "lcd1-host"
      <> value "lcd1"
      <> showDefault
-     <> help "LCD host." )
-  <*> option auto
-     ( long "port"
-    <> value 23
-    <> showDefault
-    <> help "LCD port." )
+     <> help "LCD host with display and buttons, telnet interface." )
+  <*> strOption
+      ( long "lcd2-host"
+     <> value "lcd2"
+     <> showDefault
+     <> help "LCD host with HTTP interface, display output only." )
   <*> strOption
       ( long "amqp-user"
      <> ( case maybeAmqpU

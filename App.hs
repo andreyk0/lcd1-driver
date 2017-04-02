@@ -27,8 +27,8 @@ import           Control.Monad.Trans.Reader (ReaderT, runReaderT)
 
 
 data Args = Args { argsVerbosity:: Int
-                 , argsHostName:: String
-                 , argsPort:: Int
+                 , argsLCD1Host:: String -- ^ telnet interface, has buttons
+                 , argsLCD2Host:: String -- ^ HTTP interface, display only
                  , argsAmqpUser:: String
                  , argsAmqpPassword:: String
                  , argsAmqpHost:: String
@@ -46,6 +46,7 @@ newtype App a =
                  , MonadLoggerIO
                  , MonadReader Args
                  , MonadThrow
+                 , MonadCatch
                  )
 
 
