@@ -92,12 +92,12 @@ driveLCD = do
 
   (stateOut, lcd1TextSrc : lcd2TextSrc : []) <- mvDup 2
 
-  let iDs = DriverState allDriverScreens allDriverScreens allTzs Map.empty
+  let iDs = DriverState (cirNext allDriverScreens) allDriverScreens allTzs Map.empty
 
       !lcd2Url = "http://" <> argsLCD2Host <> "/"
       lcd2Sink = do mT <- await
                     forM_ mT $ \LCDText{..} -> do
-                      let opts = defaults & param "clear" .~ [(if lcdtClear then "true" else "false")]
+                      let opts = defaults & ( if lcdtClear then (param "clear" .~ ["true"]) else id)
                                           & param "line1" .~ [ lcdtLine1 ]
                                           & param "line2" .~ [ lcdtLine2 ]
                       catch (void . liftBase $ postWith opts lcd2Url ("" :: ByteString))
@@ -213,7 +213,7 @@ renderDsTemp DriverState{..} = do
 
 renderTemperature:: Temperature
                  -> Text
-renderTemperature (Celsius t) = T.pack $ printf "%5.1f\223" t
+renderTemperature (Celsius t) = T.pack $ printf "%5.1fC" t
 
 
 renderHumidity:: Humidity
