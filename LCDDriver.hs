@@ -63,7 +63,15 @@ data DriverState =
               , dsScreenLCD2:: !(Cir DriverScreen)
               , dsTimeZone:: !(Cir (Text,TZ))
               , dsSensorData:: !(Map SensorID SensorDatum)
-              } deriving (Eq, Show)
+              } deriving (Eq)
+
+instance Show DriverState where
+  show DriverState{..} = "DriverState{ dsScreenLCD1=" <> (show . cirElem) dsScreenLCD1 <>
+                         ", dsScreenLCD2=" <> (show . cirElem) dsScreenLCD2 <>
+                         ", dsTimeZone=" <> (T.unpack . fst . cirElem) dsTimeZone <>
+                         ", dsSensorData=" <> show dsSensorData <>
+                         "}"
+
 
 
 data LCDText =
@@ -96,6 +104,7 @@ driveLCD = do
 
       !lcd2Url = "http://" <> argsLCD2Host <> "/"
       lcd2Sink = do mT <- await
+                    $(logInfo) $ "lcd2 txt: " <> (T.pack . show) mT
                     forM_ mT $ \LCDText{..} -> do
                       let opts = defaults & ( if lcdtClear then (param "clear" .~ ["true"]) else id)
                                           & param "line1" .~ [ lcdtLine1 ]
@@ -112,16 +121,17 @@ driveLCD = do
   mvSource mvInput =$= updateStateConduit iDs $$ stateOut
 
 
-dedupConduit:: (MonadBase IO m, Eq i)
+dedupConduit:: (MonadLogger m, MonadBase IO m, Eq i, Show i)
             => Conduit i m i
 dedupConduit = ddc Nothing
-  where ddc moI = do
+  where ddc !moI = do
           mI <- await
           case mI
             of Nothing -> ddc moI
                Just i  -> if moI == mI
                           then ddc mI
-                          else do yield i
+                          else do $(logInfoSH) i
+                                  yield i
                                   ddc mI
 
 

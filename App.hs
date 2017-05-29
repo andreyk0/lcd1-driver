@@ -61,8 +61,9 @@ runApp:: Args
       -> IO a
 runApp args@Args{..} app = do
   let llf = case argsVerbosity
-              of 0 -> (>LevelWarn)
-                 1 -> (>LevelInfo)
+              of 0 -> (>= LevelError)
+                 1 -> (>= LevelWarn)
+                 2 -> (>= LevelInfo)
                  _ -> (\_ -> True)
 
   runStderrLoggingT $ filterLogger (\_ ll -> llf ll) $ runReaderT (unApp app) args
