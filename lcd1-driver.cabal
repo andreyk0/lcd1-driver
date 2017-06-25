@@ -32,6 +32,7 @@ executable lcd1-driver
                      , conduit-extra
                      , containers
                      , exceptions
+                     , http-client
                      , lens
                      , lifted-base
                      , lifted-base
@@ -48,4 +49,4 @@ executable lcd1-driver
                      , tz
                      , wreq
 
-  ghc-options:       -Wall -fwarn-tabs -fno-warn-orphans -fno-warn-missing-signatures -threaded -O2
+  ghc-options:       -Wall -fwarn-tabs -fno-warn-orphans -fno-warn-missing-signatures -threaded -O2 -rtsopts -g

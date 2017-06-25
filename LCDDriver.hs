@@ -40,9 +40,9 @@ import           Home.Sensor.Types
 import           Home.Sensor.Zone
 import           LCDClient
 import           MVConduit
+import           Network.HTTP.Client (defaultManagerSettings, managerResponseTimeout, responseTimeoutMicro)
 import           Network.Wreq
 import           Text.Printf
-
 
 
 data DriverInput = Tick
@@ -103,12 +103,14 @@ driveLCD = do
   let iDs = DriverState (cirNext allDriverScreens) allDriverScreens allTzs Map.empty
 
       !lcd2Url = "http://" <> argsLCD2Host <> "/"
-      lcd2Sink = do mT <- await
+      lcd2Sink = do $(logInfo) $ "lcd2Sink awaiting input ..."
+                    mT <- await
                     $(logInfo) $ "lcd2 txt: " <> (T.pack . show) mT
                     forM_ mT $ \LCDText{..} -> do
                       let opts = defaults & ( if lcdtClear then (param "clear" .~ ["true"]) else id)
                                           & param "line1" .~ [ lcdtLine1 ]
                                           & param "line2" .~ [ lcdtLine2 ]
+                                          & manager .~ Left (defaultManagerSettings { managerResponseTimeout = responseTimeoutMicro 3000000 } )
                       catch (void . liftBase $ postWith opts lcd2Url ("" :: ByteString))
                             (\ (e::SomeException) -> $(logErrorSH) e)
                     lcd2Sink

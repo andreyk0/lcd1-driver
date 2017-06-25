@@ -1,5 +1,5 @@
 build:
-	stack build lcd1-driver
+	stack build lcd1-driver --profile
 
 test:
 	stack test lcd1-driver
