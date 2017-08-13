@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
 
@@ -25,7 +24,7 @@ readFromLCDSocket:: Int -- ^ timeout, seconds
 readFromLCDSocket timeoutSecs sock = do
   rRes <- timeout (timeoutSecs * 1000000) $ recv sock 64
   case rRes
-    of Nothing  -> (throwIO . ErrorCall) $ "Failed to receive data from LCD within " <> (show timeoutSecs) <> " seconds! Expected at least a heartbeat!"
+    of Nothing  -> (throwIO . ErrorCall) $ "Failed to receive data from LCD within " <> show timeoutSecs <> " seconds! Expected at least a heartbeat!"
        Just str -> return str
 
 
@@ -38,7 +37,7 @@ writeToLCDSocket:: Int -- ^ timeout, seconds
 writeToLCDSocket timeoutSecs str sock  = do
   sRes <- timeout (timeoutSecs*1000000) $ send sock str
   case sRes
-    of Nothing -> (throwIO . ErrorCall) $ "Failed to send data to LCD within " <> (show timeoutSecs) <> " seconds!"
+    of Nothing -> (throwIO . ErrorCall) $ "Failed to send data to LCD within " <> show timeoutSecs <> " seconds!"
        Just n  -> return (fromIntegral n)
 
 
@@ -57,7 +56,7 @@ connectToLCDSocket timeoutSecs lcdHostName lcdPort = do
                                                       (close sock)
   case cRes
     of Nothing -> do _ <- try (close sock) :: IO (Either SomeException ())
-                     (throwIO . ErrorCall) $ "Failed to connect to LCD within " <> (show timeoutSecs) <> " seconds!"
+                     (throwIO . ErrorCall) $ "Failed to connect to LCD within " <> show timeoutSecs <> " seconds!"
        Just () -> return sock
 
 
@@ -70,4 +69,3 @@ lookupLCD lcdHostName lcdPort = do
   case addrs
     of addr : _ -> return addr
        _        -> (throwIO . ErrorCall) $ "Failed to look up LCD host " <> lcdHostName <> " by name!"
-

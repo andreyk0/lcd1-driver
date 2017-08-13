@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TypeFamilies               #-}
@@ -64,7 +63,7 @@ runApp args@Args{..} app = do
               of 0 -> (>= LevelError)
                  1 -> (>= LevelWarn)
                  2 -> (>= LevelInfo)
-                 _ -> (\_ -> True)
+                 _ -> const True
 
   runStderrLoggingT $ filterLogger (\_ ll -> llf ll) $ runReaderT (unApp app) args
 

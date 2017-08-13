@@ -1,8 +1,5 @@
 {-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TemplateHaskell            #-}
 
 
 module MVConduit (
@@ -13,9 +10,9 @@ module MVConduit (
 
 
 import Control.Concurrent.MVar.Lifted
+import Control.Monad
 import Control.Monad.Base
 import Data.Conduit
-import Data.Foldable
 
 
 -- | MVar as an infinite Source
@@ -43,7 +40,7 @@ mvDup:: forall a m . (MonadBase IO m)
        => Int -- ^ number of sources
        -> m (Sink a m (), [Source m a])
 mvDup n = do
-  srcMVs <- sequence $ take n $ repeat newEmptyMVar
+  srcMVs <- replicateM n newEmptyMVar
   let srcs = fmap mvSource srcMVs
 
   let snk = do mA <- await

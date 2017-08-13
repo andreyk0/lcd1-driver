@@ -96,9 +96,9 @@ driveLCD = do
   let amqpUrl = "amqp://" <> argsAmqpUser <> ":" <> argsAmqpPassword <> "@" <> argsAmqpHost <> ":5672/"
   _ <- fork $ sourceSensorData amqpUrl =$= sampleAndHoldSensors 300 =$= CL.map SensorUpdate $$ mvSink mvInput
 
-  allTzs <- liftBase $ allTimeZones
+  allTzs <- liftBase allTimeZones
 
-  (stateOut, lcd1TextSrc : lcd2TextSrc : []) <- mvDup 2
+  (stateOut, [lcd1TextSrc, lcd2TextSrc]) <- mvDup 2
 
   let iDs = DriverState (cirNext allDriverScreens) allDriverScreens allTzs Map.empty
 
@@ -107,7 +107,7 @@ driveLCD = do
                     mT <- await
                     $(logInfo) $ "lcd2 txt: " <> (T.pack . show) mT
                     forM_ mT $ \LCDText{..} -> do
-                      let opts = defaults & ( if lcdtClear then (param "clear" .~ ["true"]) else id)
+                      let opts = defaults & ( if lcdtClear then param "clear" .~ ["true"] else id)
                                           & param "line1" .~ [ lcdtLine1 ]
                                           & param "line2" .~ [ lcdtLine2 ]
                                           & manager .~ Left (defaultManagerSettings { managerResponseTimeout = responseTimeoutMicro 3000000 } )
@@ -144,9 +144,9 @@ updateStateConduit !dS = do
   mI <- await
   case mI
     of Nothing -> updateStateConduit dS
-       Just i -> do let dS' = nextDriverState i dS
-                    yield dS'
-                    updateStateConduit dS'
+       Just i -> do let dS' = nextDriverState i $! dS
+                    yield $! dS'
+                    updateStateConduit $! dS'
 
 
 renderConduit:: (MonadBase IO m, MonadLogger m)
@@ -163,12 +163,12 @@ renderConduit screen =
 timerSource:: (MonadBase IO m, MonadLogger m)
            => Source m ()
 timerSource = do
-  ts <- liftBase $ getCurrentTime
+  ts <- liftBase getCurrentTime
 
   let dt = utctDayTime ts
-      sleepT = 61 - ( (ceiling dt) `mod` 60 )
+      sleepT = 61 - ( ceiling dt `mod` 60 )
 
-  threadDelay $ (sleepT * 1000000)
+  threadDelay (sleepT * 1000000)
 
   $(logInfo) "Tick"
 
@@ -181,7 +181,7 @@ renderState:: MonadBase IO m
            => Cir DriverScreen
            -> DriverState
            -> m LCDText
-renderState screen dS@DriverState{..} = do
+renderState screen dS@DriverState{..} =
   case cirElem screen
     of DSTime -> renderDsTime dS
        DSTemp -> renderDsTemp dS
@@ -193,9 +193,9 @@ renderDsGeiger:: MonadBase IO m
               => DriverState
               -> m LCDText
 renderDsGeiger DriverState{..} = do
-  let gcCnts = fmap (gcRate) $ zoneSensorData sdGeigerCount Basement dsSensorData
+  let gcCnts = gcRate <$> zoneSensorData sdGeigerCount Basement dsSensorData
       gcCnt :: Double = maximum $ 0.0 : gcCnts
-  return $ LCDText True (T.pack $ printf "%.1fcpm" (gcCnt * 60.0)) ""
+  return $! LCDText True (T.pack $ printf "%.1fcpm" (gcCnt * 60.0)) ""
 
 
 renderDsPressHum:: MonadBase IO m
@@ -207,7 +207,7 @@ renderDsPressHum DriverState{..} = do
       hBas = renderHumidity . zHum $ Basement
       hFst = renderHumidity . zHum $ FirstFloor
       hSnd = renderHumidity . zHum $ SecondFloor
-  return $ LCDText True (press <> " " <> hBas) (hFst <> "  " <> hSnd)
+  return $! LCDText True (press <> " " <> hBas) (hFst <> "  " <> hSnd)
 
 
 
@@ -220,29 +220,29 @@ renderDsTemp DriverState{..} = do
       tBas = renderTemperature . zTemp $ Basement
       tFst = renderTemperature . zTemp $ FirstFloor
       tSnd = renderTemperature . zTemp $ SecondFloor
-  return $ LCDText True (tOut <> " " <> tBas) (tFst <> " " <> tSnd)
+  return $! LCDText True (tOut <> " " <> tBas) (tFst <> " " <> tSnd)
 
 
 renderTemperature:: Temperature
                  -> Text
-renderTemperature (Celsius t) = T.pack $ printf "%5.1fC" t
+renderTemperature (Celsius t) = T.pack $! printf "%5.1fC" t
 
 
 renderHumidity:: Humidity
               -> Text
-renderHumidity (Humidity h) = T.pack $ printf "%4.1f%%" h
+renderHumidity (Humidity h) = T.pack $! printf "%4.1f%%" h
 
 
 renderPressure:: Pressure
               -> Text
-renderPressure (Pascal p) = T.pack $ printf "%6.0fPa" p
+renderPressure (Pascal p) = T.pack $! printf "%6.0fPa" p
 
 
 renderDsTime:: MonadBase IO m
            => DriverState
            -> m LCDText
 renderDsTime DriverState{..} = do
-  ts <- liftBase $ getCurrentTime
+  ts <- liftBase getCurrentTime
   let (tzName, tz) = cirElem dsTimeZone
       localTs = utcToLocalTimeTZ tz ts
       tsStr1 = formatTime defaultTimeLocale "%F %H:%M" localTs
@@ -253,7 +253,7 @@ renderDsTime DriverState{..} = do
 nextDriverState:: DriverInput
                -> DriverState
                -> DriverState
-nextDriverState !dIn !dS@DriverState{..} =
+nextDriverState !dIn dS@DriverState{..} =
   case dIn
     of Tick -> dS
        SensorUpdate sensorData -> dS { dsSensorData = sensorData }
@@ -310,7 +310,7 @@ zoneSensorData:: (SensorDatum -> Maybe a)
               -> Map SensorID SensorDatum
               -> [a]
 zoneSensorData getSd z s2d =
-  catMaybes $! fmap (getSd) $! catMaybes $! fmap (\sid -> Map.lookup sid s2d) zss
+  catMaybes $! fmap getSd $! catMaybes $! fmap (`Map.lookup` s2d) zss
   where zss = zoneSensors z
 
 

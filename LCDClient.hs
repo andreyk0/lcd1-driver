@@ -13,6 +13,7 @@ module LCDClient (
 
 import           Control.Concurrent.Lifted hiding (yield)
 import           Control.Exception.Lifted
+import           Control.Monad
 import           Control.Monad.Base
 import           Control.Monad.Catch (MonadThrow)
 import           Control.Monad.Logger
@@ -45,7 +46,7 @@ data LCDData = LCDButtonPress Button
 connectToLCD:: (MonadBase IO m, MonadBaseControl IO m, MonadThrow m, MonadLogger m)
             => String -- ^ LCD host name
             -> Int -- ^ LCD port
-            -> m ( (Source m Button) , (Sink Text m ()) )
+            -> m (Source m Button, Sink Text m ())
 connectToLCD lcdHostName lcdPort = do
   (inMv, outMv) <- connectToLCDMVar lcdHostName lcdPort
 
@@ -53,26 +54,26 @@ connectToLCD lcdHostName lcdPort = do
                      case maybeT >>= decodeBtnTxt
                        of Just (LCDButtonPress btn) -> yield btn
                           Just LCDHeartBeat         -> return ()
-                          _                         -> lift $ $(logError) $ "Failed to decode button '" <> ((T.pack . show) maybeT) <> "'!"
+                          _                         -> lift $ $(logError) $ "Failed to decode button '" <> (T.pack . show) maybeT <> "'!"
                      decodeBtn
 
   let srcBtn = mvSource inMv =$= CT.decode CT.ascii =$= CT.lines =$= decodeBtn
   let sinkBs = CT.encode CT.iso8859_1 =$= mvSink outMv
 
-  return $ (srcBtn, sinkBs)
+  return (srcBtn, sinkBs)
 
 
 
 decodeBtnTxt:: Text
             -> Maybe LCDData
 decodeBtnTxt ln =
-  case (T.strip ln)
+  case T.strip ln
     of "U" -> Just $ LCDButtonPress BUp
        "D" -> Just $ LCDButtonPress BDown
        "L" -> Just $ LCDButtonPress BLeft
        "R" -> Just $ LCDButtonPress BRight
        "S" -> Just $ LCDButtonPress BSelect
-       "." -> Just $ LCDHeartBeat
+       "." -> Just   LCDHeartBeat
        _   -> Nothing
 
 
@@ -110,7 +111,7 @@ connectToLCDMVar lcdHostName lcdPort = do
                                   reconnectLoop
 
                                 Right s -> do
-                                  $(logInfo) $ "Successfully connected to " <> (T.pack lcdHostName)
+                                  $(logInfo) $ "Successfully connected to " <> T.pack lcdHostName
                                   writeIORef sockRef (Just s)
                                   reconnectLoop
 
@@ -118,9 +119,7 @@ connectToLCDMVar lcdHostName lcdPort = do
                           $(logInfo) $ "Closing socket connection" <> (T.pack . show) s
                           _ <- tryPutMVar reconnectMV Nothing
                           sc <- readIORef sockRef
-                          if ((Just s) == sc)
-                            then writeIORef sockRef Nothing
-                            else return () -- already handled this failed socket
+                          when (Just s == sc) $ writeIORef sockRef Nothing
                           reconnectLoop
 
   _ <- fork reconnectLoop
@@ -133,12 +132,12 @@ connectToLCDMVar lcdHostName lcdPort = do
       withSock cont = do
         maybeS <- readIORef sockRef
         case maybeS
-          of Nothing -> do $(logInfo) $ "Waiting for connection to " <> (T.pack lcdHostName)
+          of Nothing -> do $(logInfo) $ "Waiting for connection to " <> T.pack lcdHostName
                            threadDelay (5 * 1000000)
                            withSock cont
              Just s  -> do res <- trySome $! cont s
                            case res
-                             of Left e -> do $(logError) $ "IO error host:" <> (T.pack lcdHostName) <> " socket: " <> ((T.pack.show) e)
+                             of Left e -> do $(logError) $ "IO error host:" <> T.pack lcdHostName <> " socket: " <> (T.pack . show) e
                                              putMVar reconnectMV (Just s)
                                              withSock cont
                                 Right b -> return b
