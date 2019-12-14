@@ -1,0 +1,57 @@
+name: lcd1-driver
+version: '0.1.0.0'
+synopsis: LCD1 display driver.
+description: Please see README.md
+category: tool
+author: Andrey Kartashov
+maintainer: andrey.kartashov@gmail.com
+copyright: 2016 Andrey Kartashov
+license: BSD3
+
+
+extra-source-files:
+- README.md
+
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wpartial-fields
+- -Wredundant-constraints
+
+
+dependencies:
+- amqp-sensor-messages
+- base
+- bytestring
+- conduit
+- conduit-extra
+- http-client
+- microlens-platform
+- network
+- optparse-simple
+- resourcet
+- rio
+- time
+- tz
+- unliftio
+- wreq
+
+
+library:
+  source-dirs: src
+
+
+executables:
+  lcd1-driver:
+    main:                Main.hs
+    source-dirs:         app
+    dependencies:        lcd1-driver
+
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
